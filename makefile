@@ -1,33 +1,52 @@
+.SUFFIXES: .tex .pdf .view
 
 NSAMPLE = 10000
 FMT = pdf
 DATA = 5k3.fits
 STILTS = java -classpath stilts.jar:game.jar -Djel.classes=Game \
               uk.ac.starlink.ttools.Stilts
+JYSTILTS = java -classpath jystilts.jar:game.jar -Djel.classes=Game \
+                org.python.util.jython
+JSRC = Game.java KeepPage.java
+DOC = keepspage
+
+.tex.pdf:
+	pdflatex $<
+
+.pdf.view:
+	okular $<
+
+$(DOC).tex: game.jar jystilts.jar games.py
+	$(JYSTILTS) games.py > $@
 
 PLOTCMD = $(STILTS) plot2plane in=:loop:$(NSAMPLE) x=stat \
           layer_h=histogram binsize_h=1 barform_h=semi_steps \
           cumulative_h=reverse normalise_h=height \
-          xlabel= ylabel= x2func=x grid=true minor=false \
+          xlabel= ylabel= grid=true minor=false \
           layer_m=function fexpr_m=0.5 color_m=black thick_m=3 \
           layer_q1=function fexpr_q1=0.25 \
           layer_q3=function fexpr_q3=0.75 \
           color_q=black thick_q=2 dash_q=3,3 \
-          ycrowd=0.5 xcrowd=2 ymin=0 ymax=1.01 \
+          ycrowd=0.8 xcrowd=2 ymin=0 ymax=1.01 \
           seq=_h,_m,_q1,_q3 legseq=_h \
-          legend=true legpos=.9,.9
+          legend=true legpos=.9,.9 \
+          xpix=300 ypix=212
 
-build: tiles
+build: doc
+
+view: build $(DOC).view
+
+doc: $(DOC).pdf
 
 data: $(DATA)
 
-stilts.jar:
+stilts.jar jystilts.jar:
 	curl -LO http://www.starlink.ac.uk/stilts/$@
 
-game.jar: Game.java stilts.jar
+game.jar: $(JSRC) stilts.jar
 	rm -rf tmp
 	mkdir tmp
-	javac -d tmp -classpath stilts.jar Game.java 
+	javac -d tmp -classpath stilts.jar $(JSRC)
 	cd tmp; jar cf ../$@ .
 	rm -rf tmp
 
@@ -37,14 +56,13 @@ game.jar: Game.java stilts.jar
                         cmd='addcol basic_5k3 keep(5,3,false)' \
                         cmd='delcols i' \
                         out=$@
- 
 
 plot: game.jar stilts.jar
 	$(PLOTCMD) icmd="addcol stat keep(5,3,true)" \
                    leglabel="5k3 exploding"
 
 tiles: game.jar stilts.jar
-	for roll in 1 2 3 4; \
+	for roll in 1 2 3 4 5; \
         do \
            for keep in 1 2 3 4 5 6 7 8 9 10; \
            do \
@@ -64,7 +82,8 @@ tiles: game.jar stilts.jar
 
 clean:
 	rm -f game.jar
-	rm -f basic-*k*.$(FMT) explode-*k*.$(FMT) $(DATA)
+	rm -f k[0-9].png $(DATA)
+	rm -f $(DOC).tex $(DOC).pdf $(DOC).aux $(DOC).log texput.log
 
 veryclean: clean
 	rm -f stilts.jar

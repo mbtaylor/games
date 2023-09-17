@@ -2,7 +2,7 @@ from stilts import plot2plane
 import stilts
 
 nsample = 100000
-maxroll=8
+maxroll=10
 
 basic_plot = {
    "binsize_h": 1, "barform_h": "semi_steps",
@@ -13,21 +13,18 @@ basic_plot = {
    "layer_q3": "function", "fexpr_q3": 0.75,
    "color_q": "black", "thick_q": 2, "dash_q": "3,3",
    "ycrowd": 0.8, "xcrowd": 2, "ymin": 0, "ymax": 1.001,
-   "legend": True, "legpos": ".9,.9",
-   "xpix": 600, "ypix": 300,
+   "legend": True, "legpos": ".95,.9",
+   "xpix": 850, "ypix": 300,
 }
               
-def write_fig(ik, explode=True):
-   ik1 = ik + 1
+def write_fig(ik1, file=None, explode=True):
    expl = "true" if explode else "false"
    expl_txt = "exploding" if explode else "basic"
    kwa = basic_plot.copy()
    indata = stilts.tread(":loop:%d" % nsample)
    suffixes = []
-   for ir in range(ik, maxroll):
-      ir1 = ir + 1
+   for ir1 in range(ik1, maxroll):
       col = "r%dk%d" % (ir1, ik1)
-      print(col)
       indata = indata.cmd_addcol(col, "keep(%d,%d,%s)" % (ir1, ik1, expl));
       suffix = "_h%d" % ir1
       suffixes.append(suffix)
@@ -41,10 +38,33 @@ def write_fig(ik, explode=True):
       "legseq": ",".join(suffixes),
       "seq": ",".join(suffixes) + ",_m,_q1,_q3",
       "xmin": 2*ik1,
-      "xmax": 14*ik1,
-      "transparency_h": 0.6,
+      "xmax": 12 * (1 + ik1),
+      "transparency_h": 0.75,
    })
+   if file:
+      kwa["out"] = file
    stilts.plot2plane(**kwa)
 
-write_fig(3)
+def write_doc(maxkeep):
+   tex = '''
+      \\documentclass{article}
+      \\usepackage{graphicx}
+      \\usepackage{color}
+      \\pagestyle{empty}
+      \\setlength{\\textheight}{30cm}
+      \\begin{document}
+      \\vspace*{-4cm}
+   '''
+   for ik in range(0, 5):
+      ik1 = ik + 1
+      fname = "k%d.png" % ik1
+      write_fig(ik1, file=fname)
+      tex += "\\hspace*{-2cm}"
+      tex += "\\includegraphics[height=5.2cm]{%s}\n\n" % fname
+   tex += "\end{document}"
+   print(tex)
+
+write_doc(4)
+
+# write_fig(3)
  
