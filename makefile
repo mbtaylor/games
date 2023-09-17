@@ -4,6 +4,11 @@ FMT = pdf
 STILTS = java -classpath stilts.jar:game.jar -Djel.classes=Game \
               uk.ac.starlink.ttools.Stilts
 
+PLOTCMD = $(STILTS) plot2plane in=:loop:$(NSAMPLE) \
+          layer=histogram x=stat binsize=1 \
+          xlabel= ylabel= x2func=x insets=24,2,24,2 grid=true \
+          legend=true legpos=.9,.9
+
 build: tiles
 
 stilts.jar:
@@ -16,6 +21,10 @@ game.jar: Game.java stilts.jar
 	cd tmp; jar cf ../$@ .
 	rm -rf tmp
 
+plot: game.jar stilts.jar
+	$(PLOTCMD) icmd="addcol stat keep(5,3,true)" \
+                   leglabel="5k3 basic"
+
 tiles: game.jar stilts.jar
 	for roll in 1 2 3 4; \
         do \
@@ -23,25 +32,18 @@ tiles: game.jar stilts.jar
            do \
               if [ $$keep -le $$roll ]; \
               then \
-                  echo $${roll}k$${keep}; \
-                  $(STILTS) plot2plane in=:loop:$(NSAMPLE) \
-                            icmd="addcol basic keep($$roll,$$keep,false)" \
-                            layer=histogram x=basic binsize=1 \
-                            xlabel= ylabel= x2func=x insets=24,2,24,2 \
-                            grid=true legend=true legpos=.9,.9 \
-                            leglabel="$${roll}k$${keep} basic" \
-                            out=basic-$${roll}k$${keep}.$(FMT); \
-                  $(STILTS) plot2plane in=:loop:$(NSAMPLE) \
-                            icmd="addcol explode keep($$roll,$$keep,true)" \
-                            layer=histogram x=explode binsize=1 \
-                            xlabel= ylabel= x2func=x insets=24,2,24,2 \
-                            grid=true legend=true legpos=.9,.9 \
-                            leglabel="$${roll}k$${keep} explode" \
-                            out=explode-$${roll}k$${keep}.$(FMT); \
+                  rk=$${roll}k$${keep}; \
+                  echo $$rk; \
+                  $(PLOTCMD) icmd="addcol stat keep($$roll,$$keep,false)" \
+                             leglabel="$$rk basic" \
+                             out=basic-$$rk.$(FMT); \
+                  $(PLOTCMD) icmd="addcol stat keep($$roll,$$keep,true)" \
+                             leglabel="$$rk exploding" \
+                             out=explode-$$rk.$(FMT); \
               fi \
            done \
         done
-	
+
 clean:
 	rm -f game.jar
 	rm -f basic-*k*.$(FMT) explode-*k*.$(FMT)
