@@ -44,7 +44,8 @@ PLOTCMD = $(STILTS) plot2plane in=:loop:$(NSAMPLE) x=stat \
 
 build: docs
 
-view: build $(FIGDOC).view
+view: build
+	okular $(FIGDOC).pdf $(STATSDOC).pdf $(GRIDSDOC).pdf
 
 docs: $(FIGDOC).pdf $(STATSDOC).pdf $(GRIDSDOC).pdf
 
