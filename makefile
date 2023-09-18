@@ -8,7 +8,8 @@ STILTS = java -classpath stilts.jar:game.jar -Djel.classes=Game \
 JYSTILTS = java -classpath jystilts.jar:game.jar -Djel.classes=Game \
                 org.python.util.jython
 JSRC = Game.java KeepPage.java
-DOC = keepspage
+FIGDOC = keepspage
+STATSDOC = statspage
 
 .tex.pdf:
 	pdflatex $<
@@ -16,8 +17,13 @@ DOC = keepspage
 .pdf.view:
 	okular $<
 
-$(DOC).tex: game.jar jystilts.jar games.py
+$(FIGDOC).tex: game.jar jystilts.jar games.py
 	$(JYSTILTS) games.py > $@
+
+$(STATSDOC).tex: game.jar jystilts.jar stats.py
+	$(JYSTILTS) stats.py \
+        | sed 's/^ *sep.*/\\hline/' \
+        >$@
 
 PLOTCMD = $(STILTS) plot2plane in=:loop:$(NSAMPLE) x=stat \
           layer_h=histogram binsize_h=1 barform_h=semi_steps \
@@ -32,11 +38,11 @@ PLOTCMD = $(STILTS) plot2plane in=:loop:$(NSAMPLE) x=stat \
           legend=true legpos=.9,.9 \
           xpix=300 ypix=212
 
-build: doc
+build: docs
 
-view: build $(DOC).view
+view: build $(FIGDOC).view
 
-doc: $(DOC).pdf
+docs: $(FIGDOC).pdf $(STATSDOC).pdf
 
 data: $(DATA)
 
@@ -61,6 +67,9 @@ plot: game.jar stilts.jar
 	$(PLOTCMD) icmd="addcol stat keep(5,3,true)" \
                    leglabel="5k3 exploding"
 
+stats: game.jar jystilts.jar
+	$(JYSTILTS) stats.py
+
 tiles: game.jar stilts.jar
 	for roll in 1 2 3 4 5; \
         do \
@@ -83,7 +92,9 @@ tiles: game.jar stilts.jar
 clean:
 	rm -f game.jar
 	rm -f k[0-9].png $(DATA)
-	rm -f $(DOC).tex $(DOC).pdf $(DOC).aux $(DOC).log texput.log
+	rm -f $(FIGDOC).tex $(FIGDOC).pdf $(FIGDOC).aux $(FIGDOC).log
+	rm -f $(STATSDOC).tex $(STATSDOC).pdf $(STATSDOC).aux $(STATSDOC).log
+	rm -f texput.log
 
 veryclean: clean
 	rm -f stilts.jar
