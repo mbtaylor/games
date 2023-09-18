@@ -2,7 +2,7 @@
 
 NSAMPLE = 10000
 FMT = pdf
-DATA = 5k3.fits
+DATA = 5k3.fits medians.fits
 STILTS = java -classpath stilts.jar:game.jar -Djel.classes=Game \
               uk.ac.starlink.ttools.Stilts
 JYSTILTS = java -classpath jystilts.jar:game.jar -Djel.classes=Game \
@@ -10,6 +10,7 @@ JYSTILTS = java -classpath jystilts.jar:game.jar -Djel.classes=Game \
 JSRC = Game.java KeepPage.java
 FIGDOC = keepspage
 STATSDOC = statspage
+GRIDSDOC = gridspage
 
 .tex.pdf:
 	pdflatex $<
@@ -24,6 +25,9 @@ $(STATSDOC).tex: game.jar jystilts.jar stats.py
 	$(JYSTILTS) stats.py \
         | sed 's/^ *sep.*/\\hline/' \
         >$@
+
+$(GRIDSDOC).pdf: $(GRIDSDOC).tex grid-explode.pdf grid-basic.pdf
+	pdflatex $(GRIDSDOC).tex
 
 PLOTCMD = $(STILTS) plot2plane in=:loop:$(NSAMPLE) x=stat \
           layer_h=histogram binsize_h=1 barform_h=semi_steps \
@@ -42,7 +46,7 @@ build: docs
 
 view: build $(FIGDOC).view
 
-docs: $(FIGDOC).pdf $(STATSDOC).pdf
+docs: $(FIGDOC).pdf $(STATSDOC).pdf $(GRIDSDOC).pdf
 
 data: $(DATA)
 
@@ -55,6 +59,49 @@ game.jar: $(JSRC) stilts.jar
 	javac -d tmp -classpath stilts.jar $(JSRC)
 	cd tmp; jar cf ../$@ .
 	rm -rf tmp
+
+medians.fits: stilts.jar game.jar
+	$(STILTS) tgroup in=:loop:10000000 icmd=progress \
+                  icmd='addcol roll 1+(i%10)' \
+                  icmd='addcol keep 1+((i/100)%10)' \
+                  icmd='select keep<=roll' \
+                  icmd='addcol explode keep(roll,keep,true)' \
+                  icmd='addcol basic keep(roll,keep,false)' \
+                  keys='roll keep' \
+                  aggcols='basic;median explode;median null;count' \
+                  ocmd='replacecol basic (int)basic' \
+                  ocmd='replacecol explode (int)explode' \
+                  out=$@
+
+grid-explode.pdf grid-explode.png: stilts.jar medians.fits
+	$(STILTS) plot2plane xpix=600 ypix=600 insets=60,60,60,60 \
+                  x2func=x y2func=y aspect=1 \
+                  grid=true minor=false fontsize=20 fontweight=bold \
+                  xmin=0.5 xmax=10.5 ymin=0.5 ymax=10.5 \
+                  auxmap=tropical auxvisible=false \
+                  title=Exploding \
+                  in=medians.fits x=roll y=keep \
+                  layer_g=grid weight_g=explode xbinsize_g=1 ybinsize_g=1 \
+                               xphase_g=0.5 yphase_g=0.5 \
+                  layer_t=label label_t='toString(explode)' \
+                                fontsize_t=22 fontweight_t=bold \
+                                anchor_t=center color_t=black \
+                  out=$@
+
+grid-basic.pdf grid-basic.png: stilts.jar medians.fits
+	$(STILTS) plot2plane xpix=600 ypix=600 insets=60,60,60,60 \
+                  x2func=x y2func=y aspect=1 \
+                  grid=true minor=false fontsize=20 fontweight=bold \
+                  xmin=0.5 xmax=10.5 ymin=0.5 ymax=10.5 \
+                  auxmap=tropical auxvisible=false \
+                  title=Basic \
+                  in=medians.fits x=roll y=keep \
+                  layer_g=grid weight_g=basic xbinsize_g=1 ybinsize_g=1 \
+                               xphase_g=0.5 yphase_g=0.5 \
+                  layer_t=label label_t='toString(basic)' \
+                                fontsize_t=22 fontweight_t=bold \
+                                anchor_t=center color_t=black \
+                  out=$@
 
 5k3.fits: Game.java stilts.jar
 	$(STILTS) tpipe in=:loop:$(NSAMPLE) \
@@ -94,7 +141,9 @@ clean:
 	rm -f k[0-9].png $(DATA)
 	rm -f $(FIGDOC).tex $(FIGDOC).pdf $(FIGDOC).aux $(FIGDOC).log
 	rm -f $(STATSDOC).tex $(STATSDOC).pdf $(STATSDOC).aux $(STATSDOC).log
+	rm -f $(GRIDSDOC).pdf $(GRIDSDOC).aux $(GRIDSDOC).log
 	rm -f texput.log
+	rm -f medians.fits grid-basic.pdf grid-explode.pdf
 
 veryclean: clean
 	rm -f stilts.jar
